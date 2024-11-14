@@ -67,6 +67,12 @@ router.post('/login', async (req, res) => {
   }
 });
 
+router.post('/logout', (req, res) => {
+  req.session.destroy(() => {
+    res.json(resultUtils.success());
+  });
+});
+
 router.get('/current', async (req, res) => {
   const currentUser = req.session.user;
   if (!currentUser) {
