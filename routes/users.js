@@ -14,56 +14,69 @@ function isAdmin(req) {
   return user && user.userRole === ADMIN_ROLE;
 }
 
-router.post('/register', async (req, res) => {
-  if (!req.body) {
-    return res.json(resultUtils.error({ ...errorCode.PARAMS_ERROR }));
-  }
-  const { userAccount, userPassword, checkPassword, planetCode } = req.body;
-  if (!userAccount || !userPassword || !checkPassword || !planetCode) {
-    return res.json(resultUtils.error({ ...errorCode.PARAMS_ERROR, description: '参数为空' }));
-  }
-  if (userAccount.length < 4) {
-    return res.json(resultUtils.error({ ...errorCode.PARAMS_ERROR, description: '用户账号过短' }));
-  }
-  if (userPassword.length < 8 || checkPassword.length < 8) {
-    return res.json(resultUtils.error({ ...errorCode.PARAMS_ERROR, description: '用户密码过短' }));
-  }
-  if (planetCode.length > 5) {
-    return res.json(resultUtils.error({ ...errorCode.PARAMS_ERROR, description: '星球编号过长' }));
-  }
-  if (invalidPattern.test(userAccount)) {
-    return res.json(
-      resultUtils.error({ ...errorCode.PARAMS_ERROR, description: '账号包含特殊字符' })
-    );
-  }
-  if (userPassword !== checkPassword) {
-    return res.json(
-      resultUtils.error({ ...errorCode.PARAMS_ERROR, description: '两次输入的密码不同' })
-    );
-  }
+router.post('/register', async (req, res, next) => {
   try {
+    if (!req.body) {
+      const error = new Error(errorCode.PARAMS_ERROR.message);
+      error.type = 'PARAMS_ERROR';
+      throw error;
+    }
+    const { userAccount, userPassword, checkPassword, planetCode } = req.body;
+    if (!userAccount || !userPassword || !checkPassword || !planetCode) {
+      const error = new Error('参数为空');
+      error.type = 'PARAMS_ERROR';
+      throw error;
+    }
+    if (userAccount.length < 4) {
+      const error = new Error('用户账号过短');
+      error.type = 'PARAMS_ERROR';
+      throw error;
+    }
+    if (userPassword.length < 8 || checkPassword.length < 8) {
+      const error = new Error('用户密码过短');
+      error.type = 'PARAMS_ERROR';
+      throw error;
+    }
+    if (planetCode.length > 5) {
+      const error = new Error('星球编号过长');
+      error.type = 'PARAMS_ERROR';
+      throw error;
+    }
+    if (invalidPattern.test(userAccount)) {
+      const error = new Error('账号包含特殊字符');
+      error.type = 'PARAMS_ERROR';
+      throw error;
+    }
+    if (userPassword !== checkPassword) {
+      const error = new Error('两次输入的密码不同');
+      error.type = 'PARAMS_ERROR';
+      throw error;
+    }
     const result = await userService.register(userAccount, userPassword, planetCode);
     res.json(resultUtils.success(result));
   } catch (error) {
-    const { message } = error;
-    res.json(resultUtils.error({ ...errorCode.PARAMS_ERROR, description: message }));
+    next(error);
   }
 });
 
-router.post('/login', async (req, res) => {
-  if (!req.body) {
-    return res.json(resultUtils.error({ ...errorCode.PARAMS_ERROR }));
-  }
-  const { userAccount, userPassword } = req.body;
-  if (!userAccount || !userPassword) {
-    return res.json(resultUtils.error({ ...errorCode.PARAMS_ERROR }));
-  }
+router.post('/login', async (req, res, next) => {
   try {
+    if (!req.body) {
+      const error = new Error(errorCode.PARAMS_ERROR.message);
+      error.type = 'PARAMS_ERROR';
+      throw error;
+    }
+    const { userAccount, userPassword } = req.body;
+    if (!userAccount || !userPassword) {
+      const error = new Error(errorCode.PARAMS_ERROR.message);
+      error.type = 'PARAMS_ERROR';
+      throw error;
+    }
     const user = await userService.login(userAccount, userPassword);
     req.session.user = user;
     res.json(resultUtils.success(user));
   } catch (error) {
-    res.json(resultUtils.error({ ...errorCode.PARAMS_ERROR, description: error.message }));
+    next(error);
   }
 });
 
@@ -73,36 +86,56 @@ router.post('/logout', (req, res) => {
   });
 });
 
-router.get('/current', async (req, res) => {
-  const currentUser = req.session.user;
-  if (!currentUser) {
-    return res.json(resultUtils.error({ ...errorCode.NOT_LOGIN }));
+router.get('/current', async (req, res, next) => {
+  try {
+    const currentUser = req.session.user;
+    if (!currentUser) {
+      const error = new Error(errorCode.NOT_LOGIN.message);
+      error.type = 'NOT_LOGIN';
+      throw error;
+    }
+    const user = await userService.getById(currentUser.id);
+    const camelCaseUser = camelCaseObject(user);
+    res.json(resultUtils.success(camelCaseUser));
+  } catch (error) {
+    next(error);
   }
-  const user = await userService.getById(currentUser.id);
-  const camelCaseUser = camelCaseObject(user);
-  res.json(resultUtils.success(camelCaseUser));
 });
 
-router.get('/search', async (req, res) => {
-  if (!isAdmin(req)) {
-    return res.json(resultUtils.error({ ...errorCode.NO_AUTH }));
+router.get('/search', async (req, res, next) => {
+  try {
+    if (!isAdmin(req)) {
+      const error = new Error(errorCode.NO_AUTH.message);
+      error.type = 'NO_AUTH';
+      throw error;
+    }
+    const { username } = req.body;
+    const users = await userService.list(username);
+    const camelCaseUsers = users.map(user => camelCaseObject(user));
+    res.json(resultUtils.success(camelCaseUsers));
+  } catch (error) {
+    next(error);
   }
-  const { username } = req.body;
-  const users = await userService.list(username);
-  const camelCaseUsers = users.map(user => camelCaseObject(user));
-  res.json(resultUtils.success(camelCaseUsers));
 });
 
-router.post('/delete', async (req, res) => {
-  if (!isAdmin(req)) {
-    return res.json(resultUtils.error({ ...errorCode.NO_AUTH }));
+router.post('/delete', async (req, res, next) => {
+  try {
+    if (!isAdmin(req)) {
+      const error = new Error(errorCode.NO_AUTH.message);
+      error.type = 'NO_AUTH';
+      throw error;
+    }
+    const { id } = req.body;
+    if (!id) {
+      const error = new Error(errorCode.PARAMS_ERROR.message);
+      error.type = 'PARAMS_ERROR';
+      throw error;
+    }
+    const result = await userService.removeById(id);
+    res.json(resultUtils.success(result));
+  } catch (error) {
+    next(error);
   }
-  const { id } = req.body;
-  if (!id) {
-    return res.json(resultUtils.error({ ...errorCode.PARAMS_ERROR }));
-  }
-  const result = await userService.removeById(id);
-  res.json(resultUtils.success(result));
 });
 
 module.exports = router;

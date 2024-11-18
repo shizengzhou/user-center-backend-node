@@ -1,28 +1,24 @@
-const crypto = require('crypto');
+const bcrypt = require('bcrypt');
 const knex = require('../db/knex');
 const { camelCaseObject } = require('../utils/camelCaseObject');
-
-const salt = 'yupi';
-
-function encrypt(password, salt) {
-  return crypto
-    .createHash('md5')
-    .update(salt + password)
-    .digest('hex');
-}
+const { errorCode } = require('../common/errorCode');
 
 async function register(userAccount, userPassword, planetCode) {
   let [{ count }] = await knex('user')
     .count({ count: 'user_account' })
     .where('user_account', userAccount);
   if (count > 0) {
-    throw new Error('账号重复');
+    const error = new Error('账号重复');
+    error.type = 'PARAMS_ERROR';
+    throw error;
   }
   [{ count }] = await knex('user').count({ count: 'planet_code' }).where('planet_code', planetCode);
   if (count > 0) {
-    throw new Error('编号重复');
+    const error = new Error('编号重复');
+    error.type = 'PARAMS_ERROR';
+    throw error;
   }
-  const encryptPassword = encrypt(userPassword, salt);
+  const encryptPassword = bcrypt.hashSync(userPassword, 10);
   const [id] = await knex('user').insert({
     userAccount,
     userPassword: encryptPassword,
@@ -35,12 +31,12 @@ async function register(userAccount, userPassword, planetCode) {
 }
 
 async function login(userAccount, userPassword) {
-  const encryptPassword = encrypt(userPassword, salt);
   const user = await knex('user')
     .select(
       'id',
       'username',
       'userAccount',
+      'userPassword',
       'avatarUrl',
       'gender',
       'phone',
@@ -50,12 +46,20 @@ async function login(userAccount, userPassword) {
       'userRole',
       'planetCode'
     )
-    .where({ userAccount, userPassword: encryptPassword, isDelete: 0 })
+    .where({ userAccount, isDelete: 0 })
     .first();
   if (!user) {
-    throw new Error('账号或密码错误');
+    const error = new Error('账号或密码错误');
+    error.type = 'PARAMS_ERROR';
+    throw error;
   }
   const camelCaseUser = camelCaseObject(user);
+  if (!bcrypt.compareSync(userPassword, camelCaseUser.userPassword)) {
+    const error = new Error('账号或密码错误');
+    error.type = 'PARAMS_ERROR';
+    throw error;
+  }
+  delete camelCaseUser.userPassword;
   return camelCaseUser;
 }
 

@@ -6,6 +6,7 @@ const session = require('express-session');
 
 const indexRouter = require('./routes/index');
 const usersRouter = require('./routes/users');
+const errorHandler = require('./error/errorHandler');
 
 const app = express();
 
@@ -22,5 +23,9 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/', indexRouter);
 app.use('/api/users', usersRouter);
+
+app.use(async (err, req, res, next) => {
+  await errorHandler.handleError(err, res);
+});
 
 module.exports = app;
