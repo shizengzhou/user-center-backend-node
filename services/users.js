@@ -1,18 +1,23 @@
 const bcrypt = require('bcrypt');
 const knex = require('../db/knex');
 const { camelCaseObject } = require('../utils/camelCaseObject');
-const { errorCode } = require('../common/errorCode');
 
 async function register(userAccount, userPassword, planetCode) {
   let [{ count }] = await knex('user')
     .count({ count: 'user_account' })
-    .where('user_account', userAccount);
+    .where({
+      'user_account': userAccount,
+      isDelete: 0,
+    });
   if (count > 0) {
     const error = new Error('账号重复');
     error.type = 'PARAMS_ERROR';
     throw error;
   }
-  [{ count }] = await knex('user').count({ count: 'planet_code' }).where('planet_code', planetCode);
+  [{ count }] = await knex('user').count({ count: 'planet_code' }).where({
+    'planet_code': planetCode,
+    isDelete: 0,
+  });
   if (count > 0) {
     const error = new Error('编号重复');
     error.type = 'PARAMS_ERROR';

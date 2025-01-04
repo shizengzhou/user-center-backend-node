@@ -1,6 +1,5 @@
 const express = require('express');
 const { errorCode } = require('../common/errorCode');
-const knex = require('../db/knex');
 const resultUtils = require('../common/resultUtils');
 const userService = require('../services/users');
 const { camelCaseObject } = require('../utils/camelCaseObject');
@@ -118,14 +117,14 @@ router.get('/search', async (req, res, next) => {
   }
 });
 
-router.post('/delete', async (req, res, next) => {
+router.delete('/delete', async (req, res, next) => {
   try {
     if (!isAdmin(req)) {
       const error = new Error(errorCode.NO_AUTH.message);
       error.type = 'NO_AUTH';
       throw error;
     }
-    const { id } = req.body;
+    const { id } = req.query;
     if (!id) {
       const error = new Error(errorCode.PARAMS_ERROR.message);
       error.type = 'PARAMS_ERROR';
